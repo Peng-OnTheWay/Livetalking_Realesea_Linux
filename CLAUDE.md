@@ -1,6 +1,6 @@
 # CLAUDE.md — LiveTalking 数字人模型
 
-> 最后更新：2026-06-16（清理 syl/xp 形象，放弃 384 模型，统一使用 wav2lip256）
+> 最后更新：2026-06-16（GitHub 版本管理 + P0/P1 黑屏修复 + 商业审查）
 > 本项目从主项目 `Digital_Human_Project` 中独立，专注于 LiveTalking wav2lip 数字人模型的部署与定制。
 
 ---
@@ -169,11 +169,21 @@ Bootstrap 5 风格管理面板：
 | 分辨率全链路分析 | 05-28 | 澄清 full_imgs(≤1280px) / face_imgs(256×256) / 模型(256/192) 三层 |
 | 清理冗余形象和模型 | 06-16 | 删除 syl/xp 形象，删除 wav2lip384.pth，统一只用 256 |
 | 之前优化恢复验证 | 06-16 | lip_gain 口型放大 + 静音冻结 + 边界混合已生效，无下巴抽搐，清晰度正常 |
+| GitHub 版本管理 | 06-16 | 初始化 Git 仓库，推送至 github.com/Peng-OnTheWay/Livetalking_Realesea_Linux |
+| P0-1 异常丢帧修复 | 06-16 | paste_back_frame 异常时降级为原始帧而非 continue，消除黑屏根因 |
+| P0-2 偶数分辨率全覆盖 | 06-16 | x264 偶数安全网从仅 >720p 扩展到所有帧，消除编码崩溃 |
+| P1-2 静音帧 deepcopy | 06-16 | 静音帧深拷贝防止 cv2.putText 污染原始帧缓存 |
+| 商业产品审查 | 06-16 | 完成 5 维度审查（可用性/稳定性/性能/安全性/可运维性） |
 | 之前所有工作 | — | 见 `docs/数字人开发事项.md` |
 
 ### 已知问题
 
-> ✅ 当前无已知问题。之前的下巴抽搐和清晰度问题已在 06-16 验证通过。
+| 问题 | 说明 | 状态 |
+|------|------|:--:|
+| 形象切换需冷重启 | 切换形象需杀进程重启，耗时 ~10s | 📋 待实现热切换 |
+| orange01 抽搐 | 说话↔静音跳变，`enable_transition=False` 被关闭 | 📋 待开启平滑过渡 |
+
+> 之前的 P0/P1 黑屏问题已于 06-16 修复。
 
 ---
 
@@ -270,7 +280,19 @@ Kernel size: (4 x 4). Kernel size can't be greater than actual input size
 
 ---
 
-## 九、对主项目的接口
+## 九、GitHub 仓库
+
+| 项目 | 详情 |
+|------|------|
+| **地址** | https://github.com/Peng-OnTheWay/Livetalking_Realesea_Linux |
+| **分支** | `main` |
+| **已排除** | 模型权重 (`*.pth`)、形象数据 (`data/avatars/`)、`env/`、`tools/`、`new_update/` |
+
+服务器部署时需手动拖入模型权重和形象数据。
+
+---
+
+## 十、对主项目的接口
 
 数字人作为独立服务运行，主项目 `Digital_Human_Project` 通过以下方式对接：
 
