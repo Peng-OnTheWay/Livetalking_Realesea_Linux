@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LiveTalking 数字人管理平台</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+<style>
+  :root {
+    --primary-color: #4361ee;
+    --secondary-color: #3f37c9;
+    --accent-color: #4895ef;
+    --background-color: #f8f9fa;
+    --card-bg: #ffffff;
+    --text-color: #212529;
+    --border-radius: 10px;
+    --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    min-height: 100vh;
+  }
+  .dashboard-container { max-width: 1500px; margin: 0 auto; padding: 16px; }
+
+  .card {
+    background-color: var(--card-bg);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    border: none;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .card-header {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    padding: 12px 18px;
+    border-bottom: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .status-indicator { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+  .status-connected { background-color: #28a745; }
+  .status-disconnected { background-color: #dc3545; }
+  .status-connecting { background-color: #ffc107; animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .video-container {
+    position: relative; width: 100%; background-color: #000;
+    border-radius: var(--border-radius); overflow: hidden;
+    display: flex; justify-content: center; align-items: center;
+    min-height: 360px;
+  }
+  video { max-width: 100%; max-height: 100%; display: block; border-radius: var(--border-radius); }
+
+  .recording-indicator {
+    position: absolute; top: 15px; right: 15px;
+    background-color: rgba(220, 53, 69, 0.85); color: white;
+    padding: 5px 12px; border-radius: 20px; font-size: 0.8rem;
+    display: none; align-items: center; gap: 6px;
+  }
+  .recording-indicator.active { display: flex; }
+  .recording-indicator .blink {
+    width: 10px; height: 10px; background-color: #fff;
+    border-radius: 50%; animation: blink 1s infinite;
+  }
+  @keyframes blink { 0%{opacity:1} 50%{opacity:0.3} 100%{opacity:1} }
+
+  .controls-container { padding: 16px; }
+
+  .avatar-scroll {
+    display: flex; gap: 10px; overflow-x: auto; padding: 4px 0;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .avatar-scroll::-webkit-scrollbar { display: none; }
+  .avatar-chip {
+    flex-shrink: 0; width: 80px;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    cursor: pointer; padding: 8px 4px; border-radius: 14px;
+    transition: background 0.2s;
+  }
+  .avatar-chip.selected { background: rgba(67, 97, 238, 0.1); }
+  .avatar-chip:active { transform: scale(0.95); }
+  .avatar-chip .thumb {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: #e8e8ed; overflow: hidden;
+    border: 2.5px solid transparent; transition: border-color 0.2s;
+  }
+  .avatar-chip.selected .thumb { border-color: var(--primary-color); }
+  .avatar-chip .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-chip .placeholder-icon {
+    width: 100%; height: 100%; display: flex;
+    align-items: center; justify-content: center;
+    font-size: 24px; color: #b0b0b8;
+  }
+  .avatar-chip .name {
+    font-size: 11px; color: #86868b; text-align: center;
+    line-height: 1.2; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .btn-start { background: #34c759; border-color: #34c759; color: #fff; font-weight: 600; }
+  .btn-start:hover { background: #2db14d; border-color: #2db14d; }
+  .btn-stop { background: #ff3b30; border-color: #ff3b30; color: #fff; font-weight: 600; }
+  .btn-stop:hover { background: #e0352b; border-color: #e0352b; }
+
+  .asr-container { height: 260px; overflow-y: auto; padding: 12px; background-color: #f8f9fa; border-radius: var(--border-radius); border: 1px solid #ced4da; }
+  .asr-text { margin-bottom: 8px; padding: 10px; background-color: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .user-message { background-color: #e3f2fd; border-left: 4px solid var(--primary-color); }
+  .system-message { background-color: #f1f8e9; border-left: 4px solid #8bc34a; }
+
+  .voice-record-btn {
+    width: 56px; height: 56px; border-radius: 50%;
+    background-color: var(--primary-color); color: white;
+    display: flex; justify-content: center; align-items: center;
+    cursor: pointer; transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2); margin: 10px auto 0;
+  }
+  .voice-record-btn:hover { background-color: var(--secondary-color); transform: scale(1.05); }
+  .voice-record-btn:active { background-color: #dc3545; transform: scale(0.95); }
+  .voice-record-btn.recording { background-color: #dc3545; animation: pulse-rec 1.5s infinite; }
+  @keyframes pulse-rec { 0%{box-shadow:0 0 0 0 rgba(220,53,69,0.7)} 70%{box-shadow:0 0 0 15px rgba(220,53,69,0)} 100%{box-shadow:0 0 0 0 rgba(220,53,69,0)} }
+  .voice-record-btn i { font-size: 22px; }
+  .voice-record-label { text-align: center; margin-top: 8px; font-size: 13px; color: #6c757d; }
+
+  .nav-tabs .nav-link { color: var(--text-color); border: none; padding: 8px 16px; border-radius: var(--border-radius) var(--border-radius) 0 0; }
+  .nav-tabs .nav-link.active { color: var(--primary-color); background-color: var(--card-bg); border-bottom: 3px solid var(--primary-color); font-weight: 600; }
+  .tab-content { padding: 16px; background-color: var(--card-bg); border-radius: 0 0 var(--border-radius) var(--border-radius); }
+
+  .form-control { border-radius: var(--border-radius); padding: 10px 14px; border: 1px solid #ced4da; }
+  .form-control:focus { border-color: var(--accent-color); box-shadow: 0 0 0 0.25rem rgba(67,97,238,0.2); }
+
+  .toast-msg {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-120px);
+    background: rgba(30,30,30,0.92); color: #fff; padding: 10px 24px;
+    border-radius: 12px; font-size: 14px; font-weight: 500;
+    backdrop-filter: blur(12px); transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+    z-index: 9999; pointer-events: none; max-width: 90vw; text-align: center;
+  }
+  .toast-msg.show { transform: translateX(-50%) translateY(0); }
+  .toast-msg.error { background: rgba(255,59,48,0.92); }
+
+  .footer { text-align: center; margin-top: 20px; padding: 12px 0; color: #6c757d; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="row mb-2">
+    <div class="col-12">
+      <h3 class="mb-1">LiveTalking 数字人管理平台</h3>
+      <small class="text-muted">
+        <span class="status-indicator status-disconnected" id="connection-dot"></span>
+        <span id="status-text">未连接</span>
+        <span class="ms-3" id="avatar-info"></span>
+      </small>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>数字人画面</span>
+          <div class="d-flex align-items-center gap-3">
+            <div class="d-flex align-items-center gap-2">
+              <label for="video-size-slider" class="form-label mb-0 small">尺寸</label>
+              <input type="range" class="form-range" id="video-size-slider" min="50" max="150" value="100" style="width:100px;">
+              <span id="video-size-value" class="small">100%</span>
+            </div>
+            <button class="btn btn-sm btn-outline-light" id="btn-start-record">
+              <i class="bi bi-record-fill"></i> 录制
+            </button>
+            <button class="btn btn-sm btn-outline-light d-none" id="btn-stop-record">
+              <i class="bi bi-stop-fill"></i> 停止
+            </button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="video-container">
+            <video id="video" autoplay playsinline muted></video>
+            <audio id="audio" autoplay></audio>
+            <div class="recording-indicator" id="recording-indicator">
+              <div class="blink"></div><span>录制中</span>
+            </div>
+          </div>
+
+          <div class="controls-container">
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted text-uppercase">选择形象</label>
+              <select class="form-select fw-bold" id="avatarList" onchange="selectAvatar(this.value)">
+                <option value="">加载中...</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted text-uppercase">选择TTS源</label>
+              <select class="form-select" id="ttsSelect" onchange="onTTSChange()">
+                <option value="edgetts" selected>Edge TTS (免费内置)</option>
+                <option value="qwentts">千问 TTS (DashScope)</option>
+                <option value="azuretts">Azure TTS</option>
+                <option value="doubao">豆包 TTS (火山引擎)</option>
+                <option value="tencent">腾讯 TTS</option>
+                <option value="cosyvoice">CosyVoice (需自建服务)</option>
+                <option value="fishtts">Fish Speech (需自建服务)</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted text-uppercase">Wav2Lip 模型</label>
+              <select class="form-select" id="wav2lipModelSelect">
+                <option value="256" selected>wav2lip256 (快速，215MB)</option>
+              </select>
+            </div>
+
+            <div class="mb-3" id="qwenModelGroup" style="display:none">
+              <label class="form-label small fw-bold text-muted text-uppercase">千问 TTS 模型</label>
+              <select class="form-select" id="qwenTtsModelSelect">
+                <option value="qwen3-tts-flash-realtime" selected>qwen3-tts-flash-realtime (实时)</option>
+                <option value="qwen3-tts-vd-2026-01-26">qwen3-tts-vd-2026-01-26 (VD)</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted text-uppercase">选择音色/说话人</label>
+              <div class="d-flex gap-2">
+                <select class="form-select" id="voiceSelect">
+                </select>
+                <button type="button" class="btn btn-outline-info text-nowrap" onclick="testTTS()">测试源</button>
+              </div>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button id="btnToggle" class="btn btn-start flex-grow-1" disabled onclick="toggle()">
+                <i class="bi bi-play-fill"></i> 启动服务
+              </button>
+              <button id="btnRefresh" class="btn btn-outline-secondary" onclick="refreshStatus()" title="刷新状态">
+                <i class="bi bi-arrow-clockwise"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header p-2">
+          <ul class="nav nav-tabs card-header-tabs w-100" id="interaction-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat-panel" type="button">对话模式</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="tts-tab" data-bs-toggle="tab" data-bs-target="#tts-panel" type="button">朗读模式</button>
+            </li>
+          </ul>
+        </div>
+        <div class="card-body p-2">
+          <div class="tab-content" id="interaction-tabs-content">
+            <div class="tab-pane fade show active" id="chat-panel">
+              <div class="asr-container mb-2" id="chat-messages">
+                <div class="asr-text system-message">系统: 选择形象并启动服务，即可开始对话</div>
+              </div>
+              <form id="chat-form" class="mb-2">
+                <div class="input-group">
+                  <textarea class="form-control" id="chat-message" rows="2" placeholder="输入您想说的话…" disabled></textarea>
+                  <button class="btn btn-primary" type="submit" disabled id="btn-chat-send">
+                    <i class="bi bi-send"></i>
+                  </button>
+                </div>
+              </form>
+              <div class="voice-record-btn" id="voice-record-btn" title="按住说话">
+                <i class="bi bi-mic-fill"></i>
+              </div>
+              <div class="voice-record-label">按住说话，松开发送</div>
+            </div>
+
+            <div class="tab-pane fade" id="tts-panel">
+              <form id="echo-form">
+                <div class="mb-2">
+                  <textarea class="form-control" id="echo-message" rows="6" placeholder="输入想让数字人朗读的文字…" disabled></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary w-100" disabled id="btn-echo-send">
+                  <i class="bi bi-volume-up"></i> 朗读文本
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">LiveTalking Digital Human Platform</div>
+</div>
+
+<input type="hidden" id="sessionid" value="0">
+<div class="toast-msg" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+
+let avatars = [];
+let selected = "";
+let running = null;  // null = 未知状态，避免竞态
+let phase = "idle";
+let pc = null;
+let sessionId = "0";
+let statusTimer = null;
+let _connectPromise = null;  // 防止并发 waitAndConnect
+
+function toast(msg, isError) {
+  const el = $("#toast");
+  el.textContent = msg;
+  el.className = "toast-msg" + (isError ? " error" : "") + " show";
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove("show"), 2500);
+}
+
+async function fetchJSON(url, opts) {
+  const res = await fetch(url, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.msg || data.error || "请求失败");
+  return data;
+}
+
+async function refreshStatus() {
+  try {
+    const data = await fetchJSON("/api/status");
+    running = data.running;
+    if (data.avatar && !selected) { selected = data.avatar; renderAvatars(); }
+    // 如果进程在运行但还未建立连接，且不是用户主动操作中，自动重连
+    if (data.ready && phase !== "connected" && phase !== "connecting" && phase !== "starting") {
+      phase = "connecting"; waitAndConnect();
+    } else if (data.running && !data.ready && phase !== "connecting" && phase !== "starting") {
+      // 进程在跑但模型还没加载好，进入等待
+      phase = "connecting"; waitAndConnect();
+    }
+    updateUI();
+  } catch (e) {
+    if (running) { running = false; phase = "idle"; disconnectRTC(); updateUI(); }
+  }
+}
+
+async function loadAvatars() {
+  try {
+    avatars = await fetchJSON("/api/avatars");
+    renderAvatars();
+  } catch (e) {
+    const list = $("#avatarList");
+    if (list) {
+      list.innerHTML = `<option value="">加载失败：${e.message}</option>`;
+    }
+    toast("获取形象列表失败: " + e.message, true);
+    setTimeout(loadAvatars, 2000);
+  }
+}
+
+function formatName(id) {
+  const map = {
+    "wav2lip256_avatar1": "默认形象", "wav2lip_avatar_female_model": "年轻女性",
+    "wav2lip_avatar_glass_man": "戴眼镜男性", "wav2lip_avatar_long_hair_girl": "长发女性",
+  };
+  return map[id] || id;
+}
+
+// ========== TTS 音色映射 ==========
+const VOICE_MAP = {
+  edgetts: [
+    {v:"zh-CN-YunxiaNeural",   n:"云霞 (女·默认)"},
+    {v:"zh-CN-XiaoxiaoNeural", n:"晓晓 (女)"},
+    {v:"zh-CN-YunxiNeural",    n:"云希 (男)"},
+    {v:"zh-CN-YunjianNeural",  n:"云健 (男)"},
+    {v:"zh-CN-XiaoyiNeural",   n:"晓伊 (女)"},
+    {v:"zh-CN-YunyangNeural",  n:"云扬 (男)"},
+    {v:"zh-CN-XiaochenNeural", n:"晓辰 (女)"},
+    {v:"zh-CN-XiaohanNeural",  n:"晓涵 (女)"},
+    {v:"zh-CN-XiaomengNeural", n:"晓梦 (女)"},
+    {v:"zh-CN-XiaomoNeural",   n:"晓墨 (女)"},
+    {v:"zh-CN-XiaoqiuNeural",  n:"晓秋 (女)"},
+    {v:"zh-CN-XiaoruiNeural",  n:"晓睿 (女)"},
+    {v:"zh-CN-XiaoshuangNeural",n:"晓双 (女)"},
+    {v:"zh-CN-XiaoxuanNeural", n:"晓萱 (女)"},
+    {v:"zh-CN-XiaoyanNeural",  n:"晓颜 (女)"},
+    {v:"zh-CN-XiaoyouNeural",  n:"晓悠 (女)"},
+    {v:"zh-CN-YunfengNeural",  n:"云枫 (男)"},
+    {v:"zh-CN-YunhaoNeural",   n:"云皓 (男)"},
+    {v:"zh-CN-YunyeNeural",    n:"云野 (男)"},
+    {v:"zh-CN-YunzeNeural",    n:"云泽 (男)"},
+    {v:"zh-HK-HiuMaanNeural",  n:"晓曼 (粤语·女)"},
+    {v:"zh-HK-HiuGaaiNeural",  n:"晓佳 (粤语·女)"},
+    {v:"zh-HK-WanLungNeural",  n:"云龙 (粤语·男)"},
+    {v:"zh-TW-HsiaoChenNeural",n:"晓臻 (台语·女)"},
+    {v:"zh-TW-HsiaoYuNeural",  n:"晓雨 (台语·女)"},
+    {v:"zh-TW-YunJheNeural",   n:"云哲 (台语·男)"},
+  ],
+  qwentts: [
+    {v:"Cherry",   n:"Cherry 芊悦 (阳光小姐姐·默认)"},
+    {v:"Serena",   n:"Serena 苏瑶 (温柔小姐姐)"},
+    {v:"Nini",     n:"Nini 邻家妹妹 (软糯甜音)"},
+    {v:"Mia",      n:"Mia 乖小妹 (温顺乖巧)"},
+    {v:"Bella",    n:"Bella 萌宝 (小萝莉)"},
+    {v:"Stella",   n:"Stella 少女阿月 (甜美少女)"},
+    {v:"Vivian",   n:"Vivian 十三 (小暴躁)"},
+    {v:"Chelsie",  n:"Chelsie 千雪 (二次元女友)"},
+    {v:"Momo",     n:"Momo 茉兔 (撒娇搞怪)"},
+    {v:"Ethan",    n:"Ethan 晨煦 (阳光男生)"},
+    {v:"Kai",      n:"Kai 凯 (低沉男声)"},
+    {v:"Nofish",   n:"Nofish 不吃鱼 (设计师男)"},
+  ],
+  azuretts: [
+    {v:"zh-CN-XiaoxiaoMultilingualNeural", n:"晓晓多语言"},
+    {v:"zh-CN-YunxiNeural",  n:"云希 (男)"},
+    {v:"zh-CN-YunxiaNeural", n:"云霞 (女)"},
+    {v:"zh-CN-YunjianNeural",n:"云健 (男)"},
+    {v:"zh-CN-XiaohanNeural",n:"晓涵 (女)"},
+  ],
+  doubao: [
+    {v:"BV001_streaming", n:"通用女声"},
+    {v:"BV002_streaming", n:"通用男声"},
+    {v:"BV003_streaming", n:"知性女声"},
+    {v:"BV004_streaming", n:"温柔女声"},
+    {v:"BV005_streaming", n:"自然男声"},
+    {v:"BV405_streaming", n:"热情女声"},
+    {v:"BV406_streaming", n:"活泼女声"},
+    {v:"BV407_streaming", n:"知性男声"},
+    {v:"BV700_streaming", n:"自然女声(流式)"},
+    {v:"BV701_streaming", n:"自然男声(流式)"},
+  ],
+  tencent: [
+    {v:"101001", n:"智瑜 (女)"},
+    {v:"101002", n:"智聆 (女)"},
+    {v:"101003", n:"智美 (女)"},
+    {v:"101004", n:"智云 (男)"},
+    {v:"101005", n:"智莉 (女)"},
+    {v:"101006", n:"智言 (女)"},
+    {v:"101007", n:"智娜 (女)"},
+    {v:"101008", n:"智琪 (女)"},
+    {v:"101009", n:"智芸 (女)"},
+    {v:"101010", n:"智丹 (女)"},
+    {v:"101011", n:"智凯 (男)"},
+    {v:"101012", n:"智诚 (男)"},
+    {v:"101013", n:"智恩 (女)"},
+  ],
+  cosyvoice: [
+    {v:"__custom__", n:"需配置参考音频路径"},
+  ],
+  fishtts: [
+    {v:"__custom__", n:"需配置参考音频ID"},
+  ],
+};
+
+function onTTSChange() {
+  const tts = $("#ttsSelect").value;
+  const voiceSel = $("#voiceSelect");
+  const voices = VOICE_MAP[tts] || [];
+  voiceSel.innerHTML = voices.map(v => `<option value="${v.v}">${v.n}</option>`).join("");
+  // 千问 TTS 时显示模型选择器
+  const qwenGroup = $("#qwenModelGroup");
+  if (qwenGroup) qwenGroup.style.display = (tts === 'qwentts') ? 'block' : 'none';
+}
+
+// 初始化：页面加载后立即填充默认 TTS 的音色列表
+onTTSChange();
+
+function renderAvatars() {
+  const list = $("#avatarList");
+  if (!avatars || avatars.length === 0) {
+    list.innerHTML = `<option value="">暂无可用形象</option>`;
+    return;
+  }
+  list.innerHTML = avatars.map(a => `
+    <option value="${a.id}" ${a.id === selected ? 'selected' : ''}>
+      ${formatName(a.id)}
+    </option>
+  `).join("");
+  if (!selected && avatars.length > 0) {
+    selected = avatars[0].id;
+  }
+}
+
+function selectAvatar(id) { selected = id; updateUI(); }
+
+async function testTTS() {
+  const tts = $("#ttsSelect").value;
+  const text = "这是一段语音合成测试。This is a TTS test.";
+  if (phase === "connected") {
+    await sendHuman(text, "echo");
+    toast("正在使用当前数字人播报测试...", false);
+  } else {
+    toast("提示：请先启动服务后再测试 " + tts + " 源！", false);
+  }
+}
+
+function updateConnectionStatus(status) {
+  const dot = $("#connection-dot");
+  const txt = $("#status-text");
+  dot.className = "status-indicator status-" + status;
+  if (status === "connected") txt.textContent = "已连接";
+  else if (status === "connecting") txt.textContent = "连接中…";
+  else txt.textContent = "未连接";
+}
+
+function updateUI() {
+  const btn = $("#btnToggle");
+  const chatInput = $("#chat-message");
+  const chatSend = $("#btn-chat-send");
+  const echoInput = $("#echo-message");
+  const echoSend = $("#btn-echo-send");
+  const avatarInfo = $("#avatar-info");
+
+  if (selected) {
+    const a = avatars.find(x => x.id === selected);
+    avatarInfo.textContent = a ? formatName(a.id) : "";
+  } else {
+    avatarInfo.textContent = "";
+  }
+
+  switch (phase) {
+    case "starting":
+      btn.className = "btn btn-stop flex-grow-1";
+      btn.innerHTML = '<i class="bi bi-stop-fill"></i> 停止服务';
+      btn.disabled = false;
+      updateConnectionStatus("disconnected");
+      $("#status-text").textContent = "正在启动进程…";
+      chatInput.disabled = true; chatSend.disabled = true;
+      echoInput.disabled = true; echoSend.disabled = true;
+      break;
+
+    case "connecting":
+      btn.className = "btn btn-stop flex-grow-1";
+      btn.innerHTML = '<i class="bi bi-stop-fill"></i> 停止服务';
+      btn.disabled = false;
+      updateConnectionStatus("connecting");
+      // 状态文字由 waitAndConnect 动态更新为"模型加载中…"或保持"连接中…"
+      if ($("#status-text").textContent !== "模型加载中…") {
+        $("#status-text").textContent = "连接中…";
+      }
+      chatInput.disabled = true; chatSend.disabled = true;
+      echoInput.disabled = true; echoSend.disabled = true;
+      break;
+
+    case "connected":
+      btn.className = "btn btn-stop flex-grow-1";
+      btn.innerHTML = '<i class="bi bi-stop-fill"></i> 停止服务';
+      btn.disabled = false;
+      updateConnectionStatus("connected");
+      chatInput.disabled = false; chatSend.disabled = false;
+      echoInput.disabled = false; echoSend.disabled = false;
+      break;
+
+    default:
+      if (running === null) {
+        btn.className = "btn btn-start flex-grow-1";
+        btn.innerHTML = '<i class="bi bi-play-fill"></i> 启动服务';
+        btn.disabled = true;
+        updateConnectionStatus("disconnected");
+        $("#status-text").textContent = "检测中…";
+        chatInput.disabled = true; chatSend.disabled = true;
+        echoInput.disabled = true; echoSend.disabled = true;
+      } else if (running) {
+        btn.className = "btn btn-stop flex-grow-1";
+        btn.innerHTML = '<i class="bi bi-stop-fill"></i> 停止服务';
+        btn.disabled = false;
+        updateConnectionStatus("connecting");
+        // 如果之前是 idle 状态且检测到进程在跑，可能是页面刷新后恢复
+        // 尝试自动连接
+        $("#status-text").textContent = "检测到进程，正在重连…";
+        chatInput.disabled = true; chatSend.disabled = true;
+        echoInput.disabled = true; echoSend.disabled = true;
+        // 自动触发重连
+        phase = "connecting"; waitAndConnect();
+      } else {
+        btn.className = "btn btn-start flex-grow-1";
+        btn.innerHTML = '<i class="bi bi-play-fill"></i> 启动服务';
+        btn.disabled = !selected;
+        updateConnectionStatus("disconnected");
+        chatInput.disabled = true; chatSend.disabled = true;
+        echoInput.disabled = true; echoSend.disabled = true;
+      }
+      break;
+  }
+}
+
+async function toggle() {
+  // 如果状态未知（刚刷新页面），先查后端确认
+  if (running === null) {
+    try {
+      const data = await fetchJSON("/api/status");
+      running = data.running;
+    } catch (e) {
+      running = false;
+    }
+  }
+  if (phase === "starting" || phase === "connecting" || phase === "connected" || running) {
+    await stopService();
+  } else {
+    await startService();
+  }
+}
+
+async function startService() {
+  if (!selected) { toast("请先选择形象", true); return; }
+  phase = "starting"; updateUI();
+  try {
+    const ttsVal = $("#ttsSelect").value;
+    const refFile = $("#voiceSelect").value;
+    const wav2lipModel = $("#wav2lipModelSelect").value;
+    const qwenTtsModel = $("#qwenTtsModelSelect").value;
+    const data = await fetchJSON("/api/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ avatar_id: selected, tts: ttsVal, ref_file: refFile, wav2lip_model: wav2lipModel, qwen_tts_model: qwenTtsModel }),
+    });
+    if (!data.ok) { toast(data.msg, true); phase = "idle"; updateUI(); return; }
+    toast("已启动 " + formatName(selected));
+    running = true;
+    phase = "connecting"; updateUI();
+    waitAndConnect();
+  } catch (e) {
+    toast("启动失败: " + e.message, true);
+    phase = "idle"; updateUI();
+  }
+}
+
+async function stopService() {
+  phase = "idle"; _connectPromise = null; disconnectRTC(); updateUI();
+  try {
+    await fetchJSON("/api/stop", { method: "POST" });
+    running = false; toast("已停止");
+  } catch (e) {}
+  updateUI();
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function waitAndConnect() {
+  // 防止并发调用
+  if (_connectPromise) return _connectPromise;
+  _connectPromise = (async () => {
+  // ─── 阶段1: 等待模型加载完毕（8010端口就绪）───
+  let loadingShown = false;
+  for (let i = 0; i < 60; i++) {
+    if (phase !== "connecting") return;
+    try {
+      const data = await fetchJSON("/api/status");
+      if (data.ready) break;  // 8010 端口已监听，模型加载完成
+      if (!loadingShown && data.running) {
+        $("#status-text").textContent = "模型加载中…";
+        loadingShown = true;
+      }
+    } catch (e) {}
+    await sleep(1000);
+  }
+  if (phase !== "connecting") return;
+
+  // ─── 阶段2: WebRTC 连接 ───
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (phase !== "connecting") return;
+    const ok = await connectRTC();
+    if (ok) return;
+    await sleep(2000);
+  }
+
+  toast("连接失败，请尝试重启服务", true);
+  phase = "idle"; updateUI();
+  })();
+  try { await _connectPromise; } finally { _connectPromise = null; }
+}
+
+function connectRTC() {
+  disconnectRTC();
+  try {
+    pc = new RTCPeerConnection({
+      sdpSemantics: "unified-plan",
+      iceServers: [{ urls: "stun:stun.freeswitch.org:3478" }],
+    });
+  } catch (e) { return Promise.resolve(false); }
+
+  return new Promise((resolve) => {
+    let resolved = false;
+    // 超时保护: 25 秒后仍未确定状态则视为失败
+    const timeout = setTimeout(() => {
+      if (!resolved) { resolved = true; disconnectRTC(); resolve(false); }
+    }, 25000);
+
+    pc.addEventListener("track", (evt) => {
+      try {
+        if (evt.track.kind === "video" && evt.streams[0]) {
+          const vid = $("#video"); vid.srcObject = evt.streams[0];
+          vid.play().catch(e => console.warn("Video play:", e));
+        }
+        if (evt.track.kind === "audio" && evt.streams[0]) {
+          const aud = $("#audio"); aud.srcObject = evt.streams[0];
+        }
+      } catch (e) { console.error("Track error:", e.message); }
+    });
+
+    pc.addEventListener("connectionstatechange", () => {
+      if (!pc || resolved) {
+        // 连接已建立后的断连监控
+        if (pc && (pc.connectionState === "failed" || pc.connectionState === "closed")) {
+          if (phase === "connected") { disconnectRTC(); phase = "idle"; updateUI(); }
+        }
+        return;
+      }
+      if (pc.connectionState === "connected") {
+        clearTimeout(timeout);
+        resolved = true;
+        if (phase === "connecting") { phase = "connected"; updateUI(); }
+        resolve(true);
+      } else if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+        clearTimeout(timeout);
+        resolved = true;
+        disconnectRTC();
+        resolve(false);
+      }
+    });
+
+    negotiate().catch(e => {
+      console.error("Negotiation:", e.message);
+      if (!resolved) { clearTimeout(timeout); resolved = true; disconnectRTC(); resolve(false); }
+    });
+  });
+}
+
+function negotiate() {
+  return new Promise((resolve, reject) => {
+    pc.addTransceiver("video", { direction: "recvonly" });
+    pc.addTransceiver("audio", { direction: "recvonly" });
+
+    pc.createOffer().then(offer => pc.setLocalDescription(offer))
+    .then(() => {
+      return new Promise((res) => {
+        if (pc.iceGatheringState === "complete") return res();
+        const timeout = setTimeout(() => { res(); }, 8000);
+        const check = () => { if (pc.iceGatheringState === "complete") { clearTimeout(timeout); pc.removeEventListener("icegatheringstatechange", check); res(); } };
+        pc.addEventListener("icegatheringstatechange", check);
+      });
+    })
+    .then(() => {
+      const offer = pc.localDescription;
+      return fetchJSON("/api/proxy/offer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sdp: offer.sdp, type: offer.type }),
+      });
+    })
+    .then(answer => {
+      sessionId = answer.sessionid || "0";
+      $("#sessionid").value = sessionId;
+      return pc.setRemoteDescription(answer);
+    })
+    .then(resolve)
+    .catch(reject);
+  });
+}
+
+function disconnectRTC() {
+  if (pc) { try { pc.close(); } catch (e) {} pc = null; }
+  sessionId = "0"; $("#sessionid").value = "0";
+  const vid = $("#video"); if (vid) vid.srcObject = null;
+}
+
+function addChatMessage(message, type) {
+  const container = $("#chat-messages");
+  const cls = type === "user" ? "user-message" : "system-message";
+  const sender = type === "user" ? "您" : "数字人";
+  const div = document.createElement("div");
+  div.className = "asr-text " + cls;
+  div.textContent = sender + ": " + message;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendHuman(text, msgType) {
+  if (phase !== "connected") { toast("请先连接数字人", true); return; }
+  try {
+    const voice = $("#voiceSelect").value;
+    const body = { text, type: msgType, interrupt: true, sessionid: sessionId };
+    if (voice) body.tts = { ref_file: voice };
+    await fetchJSON("/api/proxy/human", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (e) { toast("发送失败: " + e.message, true); }
+}
+
+$("#chat-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = $("#chat-message");
+  const text = input.value.trim();
+  if (!text) return;
+  await sendHuman(text, "chat");
+  addChatMessage(text, "user");
+  input.value = "";
+});
+
+$("#echo-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = $("#echo-message");
+  const text = input.value.trim();
+  if (!text) return;
+  await sendHuman(text, "echo");
+  addChatMessage('已发送朗读: "' + text + '"', "system");
+  input.value = "";
+});
+
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let recognition = null;
+
+const isSRSupported = "webkitSpeechRecognition" in window || "SpeechRecognition" in window;
+if (isSRSupported) {
+  recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = "zh-CN";
+  recognition.onresult = (event) => {
+    let interim = "", final = "";
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) final += event.results[i][0].transcript;
+      else interim += event.results[i][0].transcript;
+    }
+    if (interim) $("#chat-message").value = interim;
+    if (final) $("#chat-message").value = final;
+  };
+  recognition.onerror = (event) => { console.error("语音识别错误:", event.error); };
+}
+
+const voiceBtn = $("#voice-record-btn");
+
+voiceBtn.addEventListener("mousedown", (e) => { e.preventDefault(); startRecording(); });
+voiceBtn.addEventListener("touchstart", (e) => { e.preventDefault(); startRecording(); });
+voiceBtn.addEventListener("mouseup", () => { if (isRecording) stopRecording(); });
+voiceBtn.addEventListener("mouseleave", () => { if (isRecording) stopRecording(); });
+voiceBtn.addEventListener("touchend", () => { if (isRecording) stopRecording(); });
+
+function startRecording() {
+  if (isRecording) return;
+  navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.start();
+    isRecording = true;
+    voiceBtn.classList.add("recording");
+    if (recognition) recognition.start();
+  }).catch((error) => { console.error("麦克风:", error); toast("无法访问麦克风", true); });
+}
+
+function stopRecording() {
+  if (!isRecording) return;
+  mediaRecorder.stop();
+  isRecording = false;
+  mediaRecorder.stream.getTracks().forEach(t => t.stop());
+  voiceBtn.classList.remove("recording");
+  if (recognition) recognition.stop();
+
+  setTimeout(() => {
+    const text = $("#chat-message").value.trim();
+    if (text) {
+      sendHuman(text, "chat");
+      addChatMessage(text, "user");
+      $("#chat-message").value = "";
+    }
+  }, 500);
+}
+
+$("#btn-start-record").addEventListener("click", async () => {
+  try {
+    await fetchJSON("/api/proxy/record", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "start_record", sessionid: sessionId }),
+    });
+    $("#btn-start-record").classList.add("d-none");
+    $("#btn-stop-record").classList.remove("d-none");
+    $("#recording-indicator").classList.add("active");
+  } catch (e) { toast("录制启动失败", true); }
+});
+
+$("#btn-stop-record").addEventListener("click", async () => {
+  try {
+    await fetchJSON("/api/proxy/record", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "end_record", sessionid: sessionId }),
+    });
+    $("#btn-start-record").classList.remove("d-none");
+    $("#btn-stop-record").classList.add("d-none");
+    $("#recording-indicator").classList.remove("active");
+  } catch (e) {}
+});
+
+$("#video-size-slider").addEventListener("input", () => {
+  const val = $("#video-size-slider").value;
+  $("#video-size-value").textContent = val + "%";
+  $("#video").style.width = val + "%";
+});
+
+refreshStatus();
+loadAvatars();
+statusTimer = setInterval(refreshStatus, 5000);
+</script>
+</body>
+</html>

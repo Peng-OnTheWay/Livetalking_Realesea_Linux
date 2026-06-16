@@ -1,0 +1,28 @@
+# Conda/venv Python 环境（Windows 本地，不上传）
+env/
+.venv/
+venv/
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.vscode/
+.idea/
+
+# 临时文件
+*.log
+*.tmp
+
+# 来源素材 & 工具
+new_update/
+tools/
+
+# 模型权重（>100MB，无法推 GitHub，需手动部署）
+*.pth
+*.onnx
+*.pt
+tools/
+
