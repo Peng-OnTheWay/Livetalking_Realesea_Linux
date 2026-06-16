@@ -404,7 +404,7 @@ class BaseAvatar:
                     target_frame = self.custom_img_cycle[audiotype][mirindex]
                     self.custom_index[audiotype] += 1
                 else:
-                    target_frame = self.frame_list_cycle[idx]
+                    target_frame = copy.deepcopy(self.frame_list_cycle[idx])
                 
                 if enable_transition:
                     # 说话→静音过渡
@@ -422,8 +422,8 @@ class BaseAvatar:
                 try:
                     current_frame = self.paste_back_frame(res_frame,idx)
                 except Exception as e:
-                    logger.warning(f"paste_back_frame error: {e}")
-                    continue
+                    logger.warning(f"paste_back_frame error: {e}, fallback to original frame")
+                    current_frame = copy.deepcopy(self.frame_list_cycle[idx])
                 if enable_transition:
                     # 静音→说话过渡
                     if time.time() - _transition_start < _transition_duration and _last_silent_frame is not None:
@@ -438,18 +438,22 @@ class BaseAvatar:
 
             cv2.putText(combine_frame, "LiveTalking", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (128,128,128), 1)
 
-            # 安全网：确保输出帧 ≤ 720p 且尺寸为偶数，防止 x264 编码器崩溃
+            # 安全网：x264 编码器要求宽高均为偶数，否则崩溃 → 黑屏
             h, w = combine_frame.shape[:2]
             if h > 720 or w > 1280:
                 scale = min(720 / h, 1280 / w)
                 new_w = int(w * scale)
                 new_h = int(h * scale)
-                # x264 要求宽高均为偶数，否则编码器崩溃 → 黑屏
                 if new_w % 2 != 0:
                     new_w -= 1
                 if new_h % 2 != 0:
                     new_h -= 1
                 combine_frame = cv2.resize(combine_frame, (new_w, new_h))
+            elif w % 2 != 0 or h % 2 != 0:
+                # 小分辨率帧同样需要偶数宽高
+                new_w = w - 1 if w % 2 != 0 else w
+                new_h = h - 1 if h % 2 != 0 else h
+                combine_frame = combine_frame[:new_h, :new_w]
             
             # 使用统一输出接口推送视频帧
             self.output.push_video_frame(combine_frame)
