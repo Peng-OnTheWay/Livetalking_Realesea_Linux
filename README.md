@@ -1,15 +1,15 @@
 # LiveTalking 数字人 — Linux 部署说明
 
-> ✅ **已部署** (2026-06-16)：服务器 RTX 3090 + CUDA 12.5，conda 环境 `/mnt/xp/livetalking-env/`
+> ✅ **已部署** (2026-06-18)：服务器 RTX 3090 + CUDA 12.5，conda 环境 `/mnt/xp/livetalking-env/`
 
 ## 当前部署状态
 
 | 项目 | 状态 |
 |------|:--:|
 | 视频 WebRTC 推流 | ✅ 正常 |
-| B 端管理面板 (:8000) | ✅ 正常 |
 | 形象数据 (7 个) | ✅ 可用 |
-| TTS 音频 | ✅ 正常（之前是服务器网络限制，非代码问题） |
+| TTS 音频 (EdgeTTS) | ✅ 正常 |
+| 单端口运行 (:8010) | ✅ 已精简 |
 
 ## 快速开始
 
@@ -32,11 +32,16 @@ bash setup.sh
 ### 3. 启动
 
 ```bash
-cd launcher
-python3 server.py
+# 默认形象 orange03 + 默认音色 甜美导游
+bash start.sh
+
+# 或指定形象和音色
+bash start.sh orange01 zh-CN-YunxiaNeural
 ```
 
-浏览器访问: `http://<服务器IP>:8000`
+浏览器访问: `http://<服务器IP>:8010/dashboard.html`
+
+> 注：`launcher/` 目录是调试用的启动器（:8000），日常运行无需使用。
 
 ---
 
@@ -44,8 +49,7 @@ python3 server.py
 
 | 端口 | 进程 | 用途 |
 |:--:|------|------|
-| 8000 | `launcher/server.py` | B 端管理面板（选择形象、启停、对话测试） |
-| 8010 | `code/app.py` | 数字人推理 + WebRTC 推流 |
+| 8010 | `code/app.py` | 数字人推理 + WebRTC 推流 + 管理面板 |
 
 ---
 
